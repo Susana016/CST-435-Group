@@ -1,0 +1,18 @@
+{
+    "data_path": "data/nba_players.csv",
+    "start_year": "2015-16",
+    "end_year": "2019-20",
+    "n_players": 100,
+    "hidden_dims": "128,64,32,16",
+    "dropout_rate": 0.2,
+    "batch_norm": true,
+    "epochs": 10,
+    "batch_size": 16,
+    "learning_rate": 0.001,
+    "weight_decay": 1e-05,
+    "selection_method": "balanced",
+    "seed": 42,
+    "device": "auto",
+    "save_plots": true,
+    "verbose": true
+}
