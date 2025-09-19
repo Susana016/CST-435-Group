@@ -18,7 +18,12 @@ import os
 import sys
 
 # Add project root to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(project_root)
+
+# Change working directory to project root for consistent file access
+if os.getcwd() != project_root:
+    os.chdir(project_root)
 
 # Import project modules
 from src.load_data import load_nba_data, get_feature_columns, create_position_labels, split_data
@@ -89,8 +94,7 @@ def main():
     
     # Sidebar
     with st.sidebar:
-        st.image("https://via.placeholder.com/300x150/FF6B35/FFFFFF?text=NBA+AI", 
-                use_column_width=True)
+        st.image("https://via.placeholder.com/300x150/FF6B35/FFFFFF?text=NBA+AI")
         st.markdown("---")
         
         page = st.selectbox(
@@ -193,15 +197,31 @@ def show_data_explorer(start_year, end_year, n_players):
     st.markdown('<h2 class="sub-header">📊 NBA Players Data Explorer</h2>', 
                 unsafe_allow_html=True)
     
+    # Get project root for error messages
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    
     # Load data button
     if st.button("Load NBA Data", type="primary"):
         with st.spinner("Loading data..."):
             try:
+                # Check if data file exists
+                data_path = 'data/nba_players.csv'
+                if not os.path.exists(data_path):
+                    st.error(f"""
+                    Data file not found at: {os.path.abspath(data_path)}
+                    
+                    Please ensure the NBA dataset is in the correct location:
+                    - The file should be at: {project_root}/data/nba_players.csv
+                    
+                    Current working directory: {os.getcwd()}
+                    """)
+                    return
+                
                 # Ensure directories exist
                 ensure_directories()
                 
                 # Load data
-                df = load_nba_data('data/nba_players.csv', 
+                df = load_nba_data(data_path, 
                                  start_year, end_year, n_players)
                 
                 # Create position labels
@@ -250,7 +270,7 @@ def show_data_explorer(start_year, end_year, n_players):
             fig_pos = px.pie(values=position_counts.values, 
                             names=position_counts.index,
                             title="Position Distribution")
-            st.plotly_chart(fig_pos, use_container_width=True)
+            st.plotly_chart(fig_pos, key='position_dist')
             
             # Stats distribution
             fig_stats = go.Figure()
@@ -258,7 +278,7 @@ def show_data_explorer(start_year, end_year, n_players):
             fig_stats.add_trace(go.Box(y=df['reb'], name='Rebounds'))
             fig_stats.add_trace(go.Box(y=df['ast'], name='Assists'))
             fig_stats.update_layout(title="Player Statistics Distribution")
-            st.plotly_chart(fig_stats, use_container_width=True)
+            st.plotly_chart(fig_stats, key='stats_dist')
         
         with tab4:
             st.subheader("Feature Correlations")
@@ -445,7 +465,7 @@ def show_evaluation():
                                  y=['Guard', 'Forward', 'Center'],
                                  text_auto=True)
                 fig_cm.update_layout(title="Position Classification Confusion Matrix")
-                st.plotly_chart(fig_cm, use_container_width=True)
+                st.plotly_chart(fig_cm, key='conf_matrix')
                 
                 # Team Fit Scatter
                 st.subheader("Team Fit Score Predictions")
@@ -468,7 +488,7 @@ def show_evaluation():
                     xaxis_title="True Score",
                     yaxis_title="Predicted Score"
                 )
-                st.plotly_chart(fig_scatter, use_container_width=True)
+                st.plotly_chart(fig_scatter, key='fit_scatter')
                 
             except Exception as e:
                 st.error(f"Evaluation error: {str(e)}")
@@ -645,9 +665,15 @@ def show_report():
     """)
     
     if st.button("Download Report", type="primary"):
+        report_path = "docs/report.md"
+        if os.path.exists(report_path):
+            report_content = open(report_path).read()
+        else:
+            report_content = "Report not generated yet. Please run the main pipeline first."
+        
         st.download_button(
             label="Download as Markdown",
-            data=open("docs/report.md").read() if os.path.exists("docs/report.md") else "Report not generated",
+            data=report_content,
             file_name="nba_team_selection_report.md",
             mime="text/markdown"
         )

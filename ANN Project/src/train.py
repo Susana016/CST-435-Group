@@ -99,7 +99,7 @@ class Trainer:
             return StepLR(self.optimizer, step_size=30, gamma=0.1)
         elif scheduler_type == 'plateau':
             return ReduceLROnPlateau(self.optimizer, mode='min', 
-                                    factor=0.5, patience=5, verbose=True)
+                                    factor=0.5, patience=5)
         else:
             return None
     

@@ -1,0 +1,95 @@
+[
+    {
+        "name": "NBA_ANN_20250918_155202",
+        "timestamp": "2025-09-18T15:52:02.423173",
+        "config": {
+            "data_path": "data/nba_players.csv",
+            "start_year": "2015-16",
+            "end_year": "2019-20",
+            "n_players": 100,
+            "hidden_dims": "128,64,32,16",
+            "dropout_rate": 0.2,
+            "batch_norm": true,
+            "epochs": 10,
+            "batch_size": 16,
+            "learning_rate": 0.001,
+            "weight_decay": 1e-05,
+            "selection_method": "balanced",
+            "seed": 42,
+            "device": "auto",
+            "save_plots": true,
+            "verbose": true
+        },
+        "metrics": {
+            "final_train_loss": 1.0073915243148803,
+            "final_val_loss": 0.7737663984298706,
+            "final_train_acc": 0.08571428571428572,
+            "final_val_acc": 0.2,
+            "test_position_accuracy": 0.0,
+            "test_team_fit_r2": -1.2427918910980225,
+            "optimal_team_score": 0.604235817270279
+        }
+    },
+    {
+        "name": "NBA_ANN_20250918_161239",
+        "timestamp": "2025-09-18T16:12:39.437895",
+        "config": {
+            "data_path": "data/nba_players.csv",
+            "start_year": "2015-16",
+            "end_year": "2019-20",
+            "n_players": 100,
+            "hidden_dims": "128,64,32,16",
+            "dropout_rate": 0.2,
+            "batch_norm": true,
+            "epochs": 50,
+            "batch_size": 16,
+            "learning_rate": 0.001,
+            "weight_decay": 1e-05,
+            "selection_method": "balanced",
+            "seed": 42,
+            "device": "auto",
+            "save_plots": true,
+            "verbose": true
+        },
+        "metrics": {
+            "final_train_loss": 0.1478412091732025,
+            "final_val_loss": 0.1286131590604782,
+            "final_train_acc": 0.9714285714285714,
+            "final_val_acc": 1.0,
+            "test_position_accuracy": 1.0,
+            "test_team_fit_r2": -0.13168299198150635,
+            "optimal_team_score": 0.6933266482353211
+        }
+    },
+    {
+        "name": "NBA_ANN_20250918_165211",
+        "timestamp": "2025-09-18T16:52:11.098922",
+        "config": {
+            "data_path": "data/nba_players.csv",
+            "start_year": "2015-16",
+            "end_year": "2019-20",
+            "n_players": 100,
+            "hidden_dims": "128,64,32,16",
+            "dropout_rate": 0.2,
+            "batch_norm": true,
+            "epochs": 500,
+            "batch_size": 16,
+            "learning_rate": 0.001,
+            "weight_decay": 1e-05,
+            "selection_method": "balanced",
+            "seed": 42,
+            "device": "auto",
+            "save_plots": true,
+            "verbose": true
+        },
+        "metrics": {
+            "final_train_loss": 0.09805063009262086,
+            "final_val_loss": 0.07870867848396301,
+            "final_train_acc": 0.9857142857142858,
+            "final_val_acc": 1.0,
+            "test_position_accuracy": 1.0,
+            "test_team_fit_r2": 0.24004459381103516,
+            "optimal_team_score": 0.6899653361956278
+        }
+    }
+]

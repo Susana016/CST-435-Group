@@ -64,8 +64,8 @@ class NBAPlayersDataset(Dataset):
         if self.transform:
             sample_features = self.transform(sample_features)
         
-        sample_targets = self.targets[idx] if self.targets is not None else None
-        player_name = self.player_names[idx] if self.player_names is not None else None
+        sample_targets = self.targets[idx] if self.targets is not None else torch.tensor(0.0)
+        player_name = self.player_names[idx] if self.player_names is not None else f"Player_{idx}"
         
         return sample_features, sample_targets, player_name
     
@@ -78,6 +78,31 @@ class NBAPlayersDataset(Dataset):
         if self.targets is not None:
             return self.targets.shape[1] if len(self.targets.shape) > 1 else 1
         return 0
+
+def custom_collate_fn(batch):
+    """
+    Custom collate function to handle batches with player names.
+    
+    Args:
+        batch: List of tuples (features, targets, player_name)
+        
+    Returns:
+        Tuple of batched (features, targets, names)
+    """
+    features = []
+    targets = []
+    names = []
+    
+    for sample in batch:
+        features.append(sample[0])
+        if sample[1] is not None:
+            targets.append(sample[1])
+        names.append(sample[2] if sample[2] is not None else "Unknown")
+    
+    features_batch = torch.stack(features)
+    targets_batch = torch.stack(targets) if targets else None
+    
+    return features_batch, targets_batch, names
 
 def create_data_loaders(train_features: np.ndarray,
                        train_targets: np.ndarray,
@@ -116,13 +141,14 @@ def create_data_loaders(train_features: np.ndarray,
     val_dataset = NBAPlayersDataset(val_features, val_targets, val_names)
     test_dataset = NBAPlayersDataset(test_features, test_targets, test_names)
     
-    # Create DataLoaders
+    # Create DataLoaders with custom collate function
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
         shuffle=shuffle_train,
         num_workers=num_workers,
-        pin_memory=torch.cuda.is_available()
+        pin_memory=torch.cuda.is_available(),
+        collate_fn=custom_collate_fn
     )
     
     val_loader = DataLoader(
@@ -130,7 +156,8 @@ def create_data_loaders(train_features: np.ndarray,
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=torch.cuda.is_available()
+        pin_memory=torch.cuda.is_available(),
+        collate_fn=custom_collate_fn
     )
     
     test_loader = DataLoader(
@@ -138,7 +165,8 @@ def create_data_loaders(train_features: np.ndarray,
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers,
-        pin_memory=torch.cuda.is_available()
+        pin_memory=torch.cuda.is_available(),
+        collate_fn=custom_collate_fn
     )
     
     print(f"DataLoaders created with batch_size={batch_size}")

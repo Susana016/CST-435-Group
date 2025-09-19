@@ -96,14 +96,18 @@ class Evaluator:
         # Calculate metrics
         accuracy = (position_preds == position_true).mean()
         
-        # Confusion matrix
-        cm = confusion_matrix(position_true, position_preds)
+        # Confusion matrix - ensure 3x3 even if not all classes are present
+        cm = confusion_matrix(position_true, position_preds, labels=[0, 1, 2])
         
         # Classification report
         position_names = ['Guard', 'Forward', 'Center']
+        # Ensure we have labels 0, 1, 2 even if not all are in the test set
+        labels = [0, 1, 2]
         report = classification_report(
             position_true, position_preds,
             target_names=position_names,
+            labels=labels,
+            zero_division=0,
             output_dict=True
         )
         
@@ -326,11 +330,14 @@ def generate_evaluation_report(metrics: Dict, save_path: str = 'outputs/evaluati
     report.append("Per-Class Metrics:")
     
     for class_name in ['Guard', 'Forward', 'Center']:
-        class_metrics = pos_metrics['classification_report'][class_name]
-        report.append(f"  {class_name}:")
-        report.append(f"    Precision: {class_metrics['precision']:.4f}")
-        report.append(f"    Recall: {class_metrics['recall']:.4f}")
-        report.append(f"    F1-Score: {class_metrics['f1-score']:.4f}")
+        if class_name in pos_metrics['classification_report']:
+            class_metrics = pos_metrics['classification_report'][class_name]
+            report.append(f"  {class_name}:")
+            report.append(f"    Precision: {class_metrics['precision']:.4f}")
+            report.append(f"    Recall: {class_metrics['recall']:.4f}")
+            report.append(f"    F1-Score: {class_metrics['f1-score']:.4f}")
+        else:
+            report.append(f"  {class_name}: No samples in test set")
     
     report.append("")
     

@@ -1,0 +1,30 @@
+============================================================
+NBA TEAM SELECTION MODEL - EVALUATION REPORT
+============================================================
+
+POSITION CLASSIFICATION METRICS:
+----------------------------------------
+Overall Accuracy: 1.0000
+
+Per-Class Metrics:
+  Guard:
+    Precision: 1.0000
+    Recall: 1.0000
+    F1-Score: 1.0000
+  Forward:
+    Precision: 0.0000
+    Recall: 0.0000
+    F1-Score: 0.0000
+  Center:
+    Precision: 0.0000
+    Recall: 0.0000
+    F1-Score: 0.0000
+
+TEAM FIT SCORE METRICS:
+----------------------------------------
+Mean Squared Error (MSE): 0.031419
+Root Mean Squared Error (RMSE): 0.177253
+Mean Absolute Error (MAE): 0.153407
+R² Score: 0.2400
+
+============================================================

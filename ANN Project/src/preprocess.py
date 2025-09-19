@@ -123,19 +123,21 @@ class NBADataPreprocessor:
         Returns:
             DataFrame with handled missing values
         """
+        df = df.copy()  # Make a copy to avoid modifying the original
+        
         if self.handle_missing == 'mean':
             for col in df.columns:
                 if col in self.feature_means:
-                    df[col].fillna(self.feature_means[col], inplace=True)
+                    df[col] = df[col].fillna(self.feature_means[col])
         elif self.handle_missing == 'median':
             for col in df.columns:
                 if col in self.feature_medians:
-                    df[col].fillna(self.feature_medians[col], inplace=True)
+                    df[col] = df[col].fillna(self.feature_medians[col])
         elif self.handle_missing == 'drop':
             df = df.dropna()
         else:
             # Fill with 0 as default
-            df.fillna(0, inplace=True)
+            df = df.fillna(0)
         
         return df
     

@@ -1,0 +1,29 @@
+============================================================
+OPTIMAL NBA TEAM SELECTION
+============================================================
+
+Selection Method: Balanced Selection
+----------------------------------------
+
+SELECTED PLAYERS:
+1. Russell Westbrook         Position: Guard      Team Fit: 0.582 Overall: 0.720
+2. Giannis Antetokounmpo     Position: Forward    Team Fit: 0.611 Overall: 0.647
+3. Kawhi Leonard             Position: Guard      Team Fit: 0.531 Overall: 0.703
+
+----------------------------------------
+TEAM COMPOSITION:
+  Guards: 2
+  Forwards: 1
+
+----------------------------------------
+TEAM METRICS:
+  Avg Team Fit Score: 0.574
+  Avg Overall Score: 0.690
+  Total Points: 83.800
+  Total Rebounds: 28.600
+  Total Assists: 17.500
+  Avg Net Rating: 10.233
+
+----------------------------------------
+ANALYSIS: Unconventional lineup with unique strategic advantages
+============================================================
