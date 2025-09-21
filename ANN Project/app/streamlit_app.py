@@ -116,12 +116,12 @@ def main():
         # Data parameters
         with st.expander("Data Parameters"):
             start_year = st.selectbox("Start Year", 
-                                     ['2015-16', '2016-17', '2017-18', '2018-19'],
+                                     ['1996-97','2015-16', '2016-17', '2017-18', '2018-19'],
                                      index=0)
             end_year = st.selectbox("End Year",
                                    ['2019-20', '2020-21', '2021-22', '2022-23'],
                                    index=0)
-            n_players = st.slider("Number of Players", 50, 200, 100)
+            n_players = st.slider("Number of Players", 50, 12000, 100)
     
     # Main content based on page selection
     if page == "🏠 Home":

@@ -8,19 +8,17 @@ import numpy as np
 from typing import Tuple, Optional
 
 def load_nba_data(filepath: str, 
-                  start_year: Optional[str] = '2015-16',
-                  end_year: Optional[str] = '2019-20',
-                  n_players: int = 100,
-                  random_state: int = 42) -> pd.DataFrame:
+                  start_year: str,
+                  end_year: str,
+                  n_players: int = 100) -> pd.DataFrame:
     """
-    Load NBA players dataset and filter based on specified criteria.
+    Load NBA players dataset and filter based on specified years.
     
     Args:
         filepath: Path to the NBA players CSV file
-        start_year: Starting season for the 5-year window
-        end_year: Ending season for the 5-year window
-        n_players: Number of players to select from the pool
-        random_state: Random seed for reproducibility
+        start_year: Starting season for the year window
+        end_year: Ending season for the year window
+        n_players: Number of players to randomly select
     
     Returns:
         Filtered DataFrame containing selected NBA players
@@ -28,28 +26,13 @@ def load_nba_data(filepath: str,
     # Load the dataset
     df = pd.read_csv(filepath)
     
-    # Filter by season (5-year window)
+    # Filter by season
     year_mask = (df['season'] >= start_year) & (df['season'] <= end_year)
     df_filtered = df[year_mask].copy()
     
-    # Remove duplicate players (keep the most recent season data)
-    df_filtered = df_filtered.sort_values('season', ascending=False)
-    df_filtered = df_filtered.drop_duplicates(subset=['player_name'], keep='first')
-    
-    # Filter players with sufficient game participation (at least 20 games)
-    df_filtered = df_filtered[df_filtered['gp'] >= 20]
-    
-    # Select top players based on a composite score
-    # Composite score considers: points, rebounds, assists, and efficiency
-    df_filtered['composite_score'] = (
-        df_filtered['pts'] * 1.0 +
-        df_filtered['reb'] * 1.2 +
-        df_filtered['ast'] * 1.5 +
-        df_filtered['net_rating'] * 0.1
-    )
-    
-    # Sort by composite score and select top N players
-    df_filtered = df_filtered.nlargest(min(n_players, len(df_filtered)), 'composite_score')
+    # Randomly select n_players only if we have more players than requested
+    if len(df_filtered) > n_players:
+        df_filtered = df_filtered.sample(n=n_players, random_state=42)
     
     # Reset index
     df_filtered.reset_index(drop=True, inplace=True)
