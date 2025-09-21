@@ -371,7 +371,7 @@ def show_model_training(hidden_dims, dropout_rate, learning_rate, batch_size):
                         model, device, 
                         learning_rate=learning_rate,
                         weight_decay=0.00005,  # Less aggressive regularization
-                        patience=25,  # More patience before stopping
+                        patience=55,  # More patience before stopping
                         scheduler_type='plateau',  # Better scheduler
                         class_weights=class_weights
                     )
