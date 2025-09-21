@@ -108,10 +108,10 @@ def main():
         
         # Model parameters
         with st.expander("Model Parameters"):
-            hidden_dims = st.text_input("Hidden Layers", "128,64,32,16")
-            dropout_rate = st.slider("Dropout Rate", 0.0, 0.5, 0.2)
-            learning_rate = st.number_input("Learning Rate", 0.0001, 0.1, 0.001, format="%.4f")
-            batch_size = st.selectbox("Batch Size", [8, 16, 32, 64], index=1)
+            hidden_dims = st.text_input("Hidden Layers", "256,128,64,32")
+            dropout_rate = st.slider("Dropout Rate", 0.0, 0.5, 0.25)
+            learning_rate = st.number_input("Learning Rate", 0.0001, 0.1, 0.003, format="%.4f")
+            batch_size = st.selectbox("Batch Size", [8, 16, 32, 64], index=0)
         
         # Data parameters
         with st.expander("Data Parameters"):
@@ -309,7 +309,7 @@ def show_model_training(hidden_dims, dropout_rate, learning_rate, batch_size):
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        epochs = st.slider("Training Epochs", 10, 200, 50)
+        epochs = st.slider("Training Epochs", 10, 500, 200)
         
         if st.button("Start Training", type="primary"):
             with st.spinner("Training model..."):
@@ -318,7 +318,7 @@ def show_model_training(hidden_dims, dropout_rate, learning_rate, batch_size):
                     df = st.session_state.data
                     numerical_features, categorical_features, _ = get_feature_columns()
                     
-                    # Split data
+                    # Split data with stratification
                     train_df, val_df, test_df = split_data(df)
                     
                     # Preprocess
@@ -336,29 +336,45 @@ def show_model_training(hidden_dims, dropout_rate, learning_rate, batch_size):
                     for targets in [train_targets, val_targets, test_targets]:
                         targets[:, :3] = (targets[:, :3] == targets[:, :3].max(axis=1, keepdims=True)).astype(float)
                     
+                    # Compute class weights for balanced training
+                    from src.utils import compute_class_weights
+                    class_weights = compute_class_weights(train_targets)
+                    
+                    # Get device
+                    device = get_device()
+                    
                     # Create data loaders
                     train_loader, val_loader, test_loader = create_data_loaders(
                         train_features, train_targets,
                         val_features, val_targets,
                         test_features, test_targets,
+                        train_names=train_df['player_name'].tolist(),
+                        val_names=val_df['player_name'].tolist(),
+                        test_names=test_df['player_name'].tolist(),
                         batch_size=batch_size
                     )
                     
-                    # Create model
+                    # Create model with stronger regularization
                     hidden_layers = [int(x) for x in hidden_dims.split(',')]
                     model = create_model(
                         input_dim=train_features.shape[1],
                         config={
                             'hidden_dims': hidden_layers,
-                            'dropout_rate': dropout_rate,
+                            'dropout_rate': dropout_rate,  # Use specified dropout
                             'activation': 'relu',
                             'use_batch_norm': True
                         }
                     )
                     
-                    # Create trainer
-                    device = get_device()
-                    trainer = Trainer(model, device, learning_rate=learning_rate)
+                    # Create trainer with class weights
+                    trainer = Trainer(
+                        model, device, 
+                        learning_rate=learning_rate,
+                        weight_decay=0.00005,  # Less aggressive regularization
+                        patience=25,  # More patience before stopping
+                        scheduler_type='plateau',  # Better scheduler
+                        class_weights=class_weights
+                    )
                     
                     # Training progress
                     progress_bar = st.progress(0)

@@ -258,9 +258,9 @@ def create_model(input_dim: int,
     
     model = NBATeamMLP(
         input_dim=input_dim,
-        hidden_dims=config.get('hidden_dims', [128, 64, 32, 16]),
+        hidden_dims=config.get('hidden_dims', [256, 128, 64, 32]),
         output_dim=config.get('output_dim', 4),
-        dropout_rate=config.get('dropout_rate', 0.2),
+        dropout_rate=config.get('dropout_rate', 0.25),  # Moderate dropout
         activation=config.get('activation', 'relu'),
         use_batch_norm=config.get('use_batch_norm', True)
     )

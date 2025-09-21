@@ -94,14 +94,40 @@ def create_position_labels(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     
     # Create position scores based on player characteristics
-    # Guards: High assists, good shooting percentage
-    df['guard_score'] = (df['ast'] * 2 + df['ts_pct'] * 100) / 3
+    # Guards: High assists, good shooting percentage, lower height/weight
+    df['guard_score'] = (
+        df['ast'] * 3.0 +  # Assists are most important for guards
+        df['ts_pct'] * 50 +  # Shooting percentage
+        df['ast_pct'] * 50 +  # Assist percentage
+        (200 - df['player_height']) * 0.1 +  # Smaller players tend to be guards
+        df['pts'] * 0.5  # Scoring ability
+    )
     
-    # Forwards: Balanced scoring and rebounding
-    df['forward_score'] = (df['pts'] + df['reb'] * 1.5) / 2
+    # Forwards: Balanced scoring and rebounding, medium height
+    df['forward_score'] = (
+        df['pts'] * 1.5 +  # Scoring
+        df['reb'] * 2.0 +  # Rebounding
+        df['usg_pct'] * 30 +  # Usage rate
+        np.abs(df['player_height'] - 200) * -0.2 +  # Medium height preferred
+        df['net_rating'] * 0.5  # Overall effectiveness
+    )
     
-    # Centers: High rebounding, good defensive rating
-    df['center_score'] = (df['reb'] * 2 + df['dreb_pct'] * 100) / 3
+    # Centers: High rebounding, good defensive rating, taller/heavier
+    df['center_score'] = (
+        df['reb'] * 3.0 +  # Rebounding is key for centers
+        df['dreb_pct'] * 100 +  # Defensive rebounding percentage
+        df['oreb_pct'] * 100 +  # Offensive rebounding percentage
+        df['player_height'] * 0.3 +  # Height advantage
+        df['player_weight'] * 0.2 +  # Weight/strength
+        (10 - df['ast']) * 0.5  # Centers typically have fewer assists
+    )
+    
+    # Normalize scores to 0-1 range for each position
+    for col in ['guard_score', 'forward_score', 'center_score']:
+        min_val = df[col].min()
+        max_val = df[col].max()
+        if max_val > min_val:
+            df[col] = (df[col] - min_val) / (max_val - min_val)
     
     # Determine primary position based on highest score
     position_scores = df[['guard_score', 'forward_score', 'center_score']]
@@ -110,6 +136,24 @@ def create_position_labels(df: pd.DataFrame) -> pd.DataFrame:
         'forward_score': 1,  # Forward
         'center_score': 2  # Center
     })
+    
+    # Ensure balanced distribution by reassigning some players if needed
+    position_counts = df['primary_position'].value_counts()
+    target_count = len(df) // 3  # Aim for roughly equal distribution
+    
+    # If any position is underrepresented, reassign some borderline players
+    for pos in [0, 1, 2]:
+        if pos not in position_counts or position_counts[pos] < target_count * 0.5:
+            # Find players who could play this position (high score but not primary)
+            if pos == 0:  # Guard
+                candidates = df[df['primary_position'] != 0].nlargest(target_count - position_counts.get(pos, 0), 'guard_score')
+            elif pos == 1:  # Forward
+                candidates = df[df['primary_position'] != 1].nlargest(target_count - position_counts.get(pos, 0), 'forward_score')
+            else:  # Center
+                candidates = df[df['primary_position'] != 2].nlargest(target_count - position_counts.get(pos, 0), 'center_score')
+            
+            # Reassign top candidates to this position
+            df.loc[candidates.index[:max(5, target_count//4)], 'primary_position'] = pos
     
     # Team fit score (how well a player fits in a balanced team)
     df['team_fit_score'] = (
@@ -124,6 +168,10 @@ def create_position_labels(df: pd.DataFrame) -> pd.DataFrame:
     df['team_fit_score'] = (df['team_fit_score'] - df['team_fit_score'].min()) / \
                            (df['team_fit_score'].max() - df['team_fit_score'].min())
     
+    # Print position distribution
+    print(f"Position distribution: Guards={sum(df['primary_position']==0)}, "
+          f"Forwards={sum(df['primary_position']==1)}, Centers={sum(df['primary_position']==2)}")
+    
     return df
 
 def split_data(df: pd.DataFrame, 
@@ -131,7 +179,7 @@ def split_data(df: pd.DataFrame,
                val_ratio: float = 0.15,
                random_state: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
-    Split data into train, validation, and test sets.
+    Split data into train, validation, and test sets with stratification.
     
     Args:
         df: DataFrame to split
@@ -144,20 +192,50 @@ def split_data(df: pd.DataFrame,
     """
     np.random.seed(random_state)
     
-    n = len(df)
-    indices = np.random.permutation(n)
+    # Stratified split to maintain position distribution
+    from sklearn.model_selection import train_test_split
     
-    train_size = int(n * train_ratio)
-    val_size = int(n * val_ratio)
+    # First split: train+val vs test
+    train_val_ratio = train_ratio + val_ratio
     
-    train_indices = indices[:train_size]
-    val_indices = indices[train_size:train_size + val_size]
-    test_indices = indices[train_size + val_size:]
-    
-    train_df = df.iloc[train_indices].reset_index(drop=True)
-    val_df = df.iloc[val_indices].reset_index(drop=True)
-    test_df = df.iloc[test_indices].reset_index(drop=True)
+    if 'primary_position' in df.columns:
+        # Use stratification if position labels exist
+        train_val_df, test_df = train_test_split(
+            df, test_size=1-train_val_ratio, 
+            stratify=df['primary_position'],
+            random_state=random_state
+        )
+        
+        # Second split: train vs val
+        val_size = val_ratio / train_val_ratio
+        train_df, val_df = train_test_split(
+            train_val_df, test_size=val_size,
+            stratify=train_val_df['primary_position'],
+            random_state=random_state
+        )
+    else:
+        # Random split if no position labels
+        n = len(df)
+        indices = np.random.permutation(n)
+        
+        train_size = int(n * train_ratio)
+        val_size = int(n * val_ratio)
+        
+        train_indices = indices[:train_size]
+        val_indices = indices[train_size:train_size + val_size]
+        test_indices = indices[train_size + val_size:]
+        
+        train_df = df.iloc[train_indices].reset_index(drop=True)
+        val_df = df.iloc[val_indices].reset_index(drop=True)
+        test_df = df.iloc[test_indices].reset_index(drop=True)
     
     print(f"Data split: Train={len(train_df)}, Val={len(val_df)}, Test={len(test_df)}")
+    
+    # Print position distribution in each set
+    if 'primary_position' in df.columns:
+        for name, subset in [('Train', train_df), ('Val', val_df), ('Test', test_df)]:
+            counts = subset['primary_position'].value_counts().sort_index()
+            print(f"{name} positions: Guards={counts.get(0, 0)}, "
+                  f"Forwards={counts.get(1, 0)}, Centers={counts.get(2, 0)}")
     
     return train_df, val_df, test_df

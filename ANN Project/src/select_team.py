@@ -133,6 +133,7 @@ class TeamSelector:
     def _select_balanced(self, evaluations: pd.DataFrame) -> Dict:
         """
         Select team ensuring balanced position distribution.
+        ALWAYS ensures at least one of each position.
         
         Args:
             evaluations: Player evaluations
@@ -143,25 +144,57 @@ class TeamSelector:
         selected_players = []
         remaining = evaluations.copy()
         
-        # First, ensure minimum position requirements
-        positions_needed = {'Guard': 1, 'Forward': 2, 'Center': 1}
+        # CRITICAL: Ensure at least one of each position
+        required_positions = ['Guard', 'Forward', 'Center']
         
-        for position, count in positions_needed.items():
+        # First, select the best player for each position (ensuring we have at least 1 of each)
+        for position in required_positions:
             position_players = remaining[
                 remaining['predicted_position'] == position
-            ].nlargest(count, 'overall_score')
+            ]
             
-            selected_players.append(position_players)
-            remaining = remaining[~remaining['player_name'].isin(position_players['player_name'])]
+            if len(position_players) == 0:
+                # If no players predicted for this position, find the player with highest probability
+                if position == 'Guard':
+                    best_player = remaining.nlargest(1, 'guard_prob')
+                elif position == 'Forward':
+                    best_player = remaining.nlargest(1, 'forward_prob')
+                else:  # Center
+                    best_player = remaining.nlargest(1, 'center_prob')
+            else:
+                # Select best player for this position
+                best_player = position_players.nlargest(1, 'overall_score')
+            
+            selected_players.append(best_player)
+            remaining = remaining[~remaining['player_name'].isin(best_player['player_name'])]
         
-        # Fill remaining slot with best available player
-        if len(pd.concat(selected_players)) < 5:
-            best_remaining = remaining.nlargest(1, 'overall_score')
+        # Now we have 3 players (one of each position), select 2 more
+        # Prefer: 1 more guard/forward for balance
+        remaining_spots = 2
+        
+        # Try to get one more guard or forward
+        guards_forwards = remaining[
+            remaining['predicted_position'].isin(['Guard', 'Forward'])
+        ]
+        
+        if len(guards_forwards) > 0:
+            next_player = guards_forwards.nlargest(1, 'overall_score')
+            selected_players.append(next_player)
+            remaining = remaining[~remaining['player_name'].isin(next_player['player_name'])]
+            remaining_spots -= 1
+        
+        # Fill last spot with best remaining player
+        if remaining_spots > 0 and len(remaining) > 0:
+            best_remaining = remaining.nlargest(remaining_spots, 'overall_score')
             selected_players.append(best_remaining)
         
         team = pd.concat(selected_players)
         
-        return self._create_team_dict(team, evaluations, 'Balanced Selection')
+        # Ensure we have exactly 5 players
+        if len(team) > 5:
+            team = team.nlargest(5, 'overall_score')
+        
+        return self._create_team_dict(team, evaluations, 'Balanced Selection (Position-Enforced)')
     
     def _select_exhaustive(self, evaluations: pd.DataFrame, max_combinations: int = 10000) -> Dict:
         """

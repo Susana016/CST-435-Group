@@ -65,13 +65,13 @@ def parse_arguments():
                        help='Use batch normalization')
     
     # Training arguments
-    parser.add_argument('--epochs', type=int, default=50,
+    parser.add_argument('--epochs', type=int, default=200,
                        help='Number of training epochs')
-    parser.add_argument('--batch_size', type=int, default=16,
+    parser.add_argument('--batch_size', type=int, default=8,
                        help='Batch size for training')
-    parser.add_argument('--learning_rate', type=float, default=0.001,
+    parser.add_argument('--learning_rate', type=float, default=0.003,
                        help='Learning rate for optimizer')
-    parser.add_argument('--weight_decay', type=float, default=1e-5,
+    parser.add_argument('--weight_decay', type=float, default=5e-5,
                        help='Weight decay for regularization')
     
     # Team selection arguments
@@ -213,15 +213,20 @@ def main():
     # ==========================================
     print_banner("STEP 5: TRAINING NEURAL NETWORK")
     
-    # Create trainer
+    # Compute class weights for handling imbalance (device not needed, handled by CustomLoss)
+    from src.utils import compute_class_weights
+    class_weights = compute_class_weights(train_targets)
+    
+    # Create trainer with class weights
     trainer = Trainer(
         model=model,
         device=device,
         learning_rate=args.learning_rate,
-        weight_decay=args.weight_decay,
+        weight_decay=args.weight_decay * 2,  # Moderate weight decay
         optimizer_type='adam',
         scheduler_type='plateau',
-        patience=10
+        patience=50,  # Much more patience
+        class_weights=class_weights
     )
     
     # Train model
@@ -355,3 +360,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    

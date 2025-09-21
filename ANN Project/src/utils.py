@@ -332,6 +332,43 @@ def create_experiment_log(experiment_name: str,
     
     print(f"Experiment logged: {experiment_name}")
 
+def compute_class_weights(targets: np.ndarray, device: str = 'cpu') -> torch.Tensor:
+    """
+    Compute balanced class weights for handling class imbalance.
+    
+    Args:
+        targets: Target array with one-hot encoded positions
+        device: Device to place weights on (not used, kept for compatibility)
+        
+    Returns:
+        Class weights tensor
+    """
+    # Get position labels from one-hot encoding
+    position_labels = targets[:, :3].argmax(axis=1)
+    
+    # Count occurrences of each class
+    unique, counts = np.unique(position_labels, return_counts=True)
+    
+    # Compute balanced weights (inverse frequency)
+    n_samples = len(position_labels)
+    n_classes = 3  # Guards, Forwards, Centers
+    
+    weights = np.zeros(n_classes)
+    for i in range(n_classes):
+        if i in unique:
+            idx = np.where(unique == i)[0][0]
+            weights[i] = n_samples / (n_classes * counts[idx])
+        else:
+            weights[i] = 1.0  # Default weight if class not present
+    
+    # Normalize weights
+    weights = weights / weights.mean()
+    
+    print(f"Class weights: Guards={weights[0]:.2f}, Forwards={weights[1]:.2f}, Centers={weights[2]:.2f}")
+    
+    # Return as CPU tensor - the CustomLoss module will handle device placement
+    return torch.tensor(weights, dtype=torch.float32)
+
 def print_banner(text: str, width: int = 60):
     """
     Print a formatted banner.

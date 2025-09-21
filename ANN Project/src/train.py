@@ -31,7 +31,8 @@ class Trainer:
                  weight_decay: float = 1e-5,
                  optimizer_type: str = 'adam',
                  scheduler_type: str = 'step',
-                 patience: int = 10):
+                 patience: int = 25,  # Increased from 10
+                 class_weights: Optional[torch.Tensor] = None):
         """
         Initialize the trainer.
         
@@ -42,7 +43,8 @@ class Trainer:
             weight_decay: L2 regularization strength
             optimizer_type: Type of optimizer ('adam', 'sgd', 'rmsprop')
             scheduler_type: Type of learning rate scheduler ('step', 'plateau', 'none')
-            patience: Patience for early stopping
+            patience: Patience for early stopping (increased to 25)
+            class_weights: Optional class weights for handling imbalance
         """
         self.model = model.to(device)
         self.device = device
@@ -50,14 +52,16 @@ class Trainer:
         self.weight_decay = weight_decay
         self.patience = patience
         
-        # Initialize optimizer
+        # Initialize optimizer with higher weight decay to prevent overfitting
         self.optimizer = self._create_optimizer(optimizer_type)
         
         # Initialize scheduler
         self.scheduler = self._create_scheduler(scheduler_type)
         
-        # Loss functions
-        self.criterion = CustomLoss(position_weight=0.6, team_fit_weight=0.4)
+        # Loss functions with class weights
+        self.criterion = CustomLoss(position_weight=0.75, team_fit_weight=0.25, class_weights=class_weights)
+        # Move the criterion to device (this will also move the registered buffers)
+        self.criterion = self.criterion.to(device)
         
         # Training history
         self.history = {
@@ -96,10 +100,10 @@ class Trainer:
     def _create_scheduler(self, scheduler_type: str):
         """Create learning rate scheduler."""
         if scheduler_type == 'step':
-            return StepLR(self.optimizer, step_size=30, gamma=0.1)
+            return StepLR(self.optimizer, step_size=50, gamma=0.5)  # Less aggressive
         elif scheduler_type == 'plateau':
             return ReduceLROnPlateau(self.optimizer, mode='min', 
-                                    factor=0.5, patience=5)
+                                    factor=0.7, patience=10, min_lr=1e-6)  # More gradual
         else:
             return None
     
@@ -178,6 +182,7 @@ class Trainer:
         total_loss = 0
         correct_predictions = 0
         total_samples = 0
+        all_predictions = []
         
         with torch.no_grad():
             for features, targets, _ in val_loader:
@@ -194,6 +199,10 @@ class Trainer:
                 position_preds = self.model.get_position_predictions(outputs)
                 position_targets = targets[:, :3].argmax(dim=1)
                 position_predicted = position_preds.argmax(dim=1)
+                
+                # Track all predictions to check diversity
+                all_predictions.extend(position_predicted.cpu().numpy())
+                
                 correct_predictions += (position_predicted == position_targets).sum().item()
                 
                 total_loss += loss.item()
@@ -201,6 +210,16 @@ class Trainer:
         
         avg_loss = total_loss / len(val_loader)
         avg_acc = correct_predictions / total_samples
+        
+        # Check prediction diversity (are we predicting all positions?)
+        unique_predictions = len(np.unique(all_predictions))
+        if unique_predictions == 1:
+            print(f"  Warning: Model only predicting one position! Predicted class: {all_predictions[0]}")
+            # Penalize accuracy if not diverse
+            avg_acc = avg_acc * 0.5
+        elif unique_predictions == 2:
+            print(f"  Warning: Model only predicting two positions!")
+            avg_acc = avg_acc * 0.75
         
         return avg_loss, avg_acc
     
@@ -292,20 +311,35 @@ class Trainer:
         return self.history
 
 class CustomLoss(nn.Module):
-    """Custom loss function combining position and team fit losses."""
+    """Custom loss function combining position and team fit losses with class weighting."""
     
-    def __init__(self, position_weight: float = 0.6, team_fit_weight: float = 0.4):
+    def __init__(self, 
+                 position_weight: float = 0.75,  # Increased from 0.6
+                 team_fit_weight: float = 0.25,  # Decreased from 0.4
+                 class_weights: Optional[torch.Tensor] = None):
         super(CustomLoss, self).__init__()
         self.position_weight = position_weight
         self.team_fit_weight = team_fit_weight
-        self.ce_loss = nn.CrossEntropyLoss()
+        
+        # Register class weights as a buffer so they move with the module
+        if class_weights is not None:
+            self.register_buffer('class_weights', class_weights)
+        else:
+            self.register_buffer('class_weights', torch.tensor([1.0, 1.0, 1.0]))
+        
         self.mse_loss = nn.MSELoss()
     
     def forward(self, output: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
         # Position classification loss
         position_output = output[:, :3]
         position_target = target[:, :3].argmax(dim=1)
-        position_loss = self.ce_loss(position_output, position_target)
+        
+        # Create loss with weights on correct device (buffer automatically moves with module)
+        ce_loss = nn.functional.cross_entropy(
+            position_output, 
+            position_target, 
+            weight=self.class_weights
+        )
         
         # Team fit score loss
         team_fit_output = torch.sigmoid(output[:, -1])
@@ -313,6 +347,6 @@ class CustomLoss(nn.Module):
         team_fit_loss = self.mse_loss(team_fit_output, team_fit_target)
         
         # Combined loss
-        total_loss = self.position_weight * position_loss + self.team_fit_weight * team_fit_loss
+        total_loss = self.position_weight * ce_loss + self.team_fit_weight * team_fit_loss
         
         return total_loss
