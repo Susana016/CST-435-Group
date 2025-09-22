@@ -681,7 +681,7 @@ def show_report():
     """)
     
     if st.button("Download Report", type="primary"):
-        report_path = "docs/report.md"
+        report_path = "ANN_Project/docs/report.md"
         if os.path.exists(report_path):
             report_content = open(report_path).read()
         else:
