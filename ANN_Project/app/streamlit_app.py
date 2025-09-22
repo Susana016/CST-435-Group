@@ -205,7 +205,7 @@ def show_data_explorer(start_year, end_year, n_players):
         with st.spinner("Loading data..."):
             try:
                 # Check if data file exists
-                data_path = 'data/nba_players.csv'
+                data_path = 'ANN_Project/data/nba_players.csv'
                 if not os.path.exists(data_path):
                     st.error(f"""
                     Data file not found at: {os.path.abspath(data_path)}
